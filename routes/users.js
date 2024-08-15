@@ -2,12 +2,14 @@ const express = require("express");
 const User = require("../models/user");
 const passport = require("passport");
 const authenticate = require("../authenticate");
+const cors = require("./cors");
 
 const router = express.Router();
 
 /* GET users listing. */
 router.get(
   "/",
+  cors.corsWithOptions,
   authenticate.verifyUser,
   authenticate.verifyAdmin,
   (req, res, next) => {
@@ -22,7 +24,7 @@ router.get(
 );
 
 // Signup Route
-router.post("/signup", async (req, res, next) => {
+router.post("/signup", cors.corsWithOptions, async (req, res, next) => {
   // Validate input
   if (!req.body.username || !req.body.password) {
     res.status(400); // Bad Request
@@ -58,20 +60,25 @@ router.post("/signup", async (req, res, next) => {
 });
 
 // Login Route
-router.post("/login", passport.authenticate("local"), (req, res) => {
-  // Generate token for authenticated user
-  const token = authenticate.getToken({ _id: req.user._id });
-  res.status(200); // OK
-  res.setHeader("Content-Type", "application/json");
-  return res.json({
-    success: true,
-    token: token,
-    status: "You are successfully logged in!",
-  });
-});
+router.post(
+  "/login",
+  cors.corsWithOptions,
+  passport.authenticate("local"),
+  (req, res) => {
+    // Generate token for authenticated user
+    const token = authenticate.getToken({ _id: req.user._id });
+    res.status(200); // OK
+    res.setHeader("Content-Type", "application/json");
+    return res.json({
+      success: true,
+      token: token,
+      status: "You are successfully logged in!",
+    });
+  }
+);
 
 // Logout Route
-router.get("/logout", (req, res, next) => {
+router.get("/logout", cors.corsWithOptions, (req, res, next) => {
   if (req.session) {
     req.session.destroy((err) => {
       // Handle errors in session destruction
@@ -87,5 +94,22 @@ router.get("/logout", (req, res, next) => {
     return next(err); // Pass error to Express error handler
   }
 });
+
+router.get(
+  "/facebook/token",
+  passport.authenticate("facebook-token"),
+  (req, res) => {
+    if (req.user) {
+      const token = authenticate.getToken({ _id: req.user._id });
+      res.statusCode = 200;
+      res.setHeader("Content-Type", "application/json");
+      res.json({
+        success: true,
+        token: token,
+        status: "You are successfully logged in!",
+      });
+    }
+  }
+);
 
 module.exports = router;
